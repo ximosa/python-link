@@ -69,6 +69,7 @@ def limpiar_transcripcion_gemini(texto):
         st.error(f"Error al procesar con Gemini: {e}")
         return None
 
+
 def procesar_transcripcion(texto):
     """Procesa el texto dividiendo en fragmentos y usando Gemini."""
     fragmentos = dividir_texto(texto)
@@ -79,6 +80,7 @@ def procesar_transcripcion(texto):
         if texto_limpio:
             texto_limpio_completo += texto_limpio + " "  # Agregar espacio para evitar que las frases se unan
     return texto_limpio_completo.strip()
+
 
 def descargar_texto(texto_formateado):
     """
@@ -97,18 +99,19 @@ def descargar_texto(texto_formateado):
         mime="text/plain"
     )
 
+
 st.title("Limpiador de Transcripciones de YouTube (con Gemini)")
 
 transcripcion = st.text_area("Pega aquí tu transcripción sin formato:")
-procesar_button = st.button("Procesar Texto") # Botón para iniciar el procesamiento
+procesar_button = st.button("Procesar Texto")  # Botón para iniciar el procesamiento
 
 if procesar_button:
     if transcripcion:
-         with st.spinner("Procesando con Gemini..."):
-             texto_limpio = procesar_transcripcion(transcripcion)
-             if texto_limpio:
-                 st.subheader("Transcripción Formateada:")
-                 st.write(texto_limpio)
-                 descargar_texto(texto_limpio)
+        with st.spinner("Procesando con Gemini..."):
+            texto_limpio = procesar_transcripcion(transcripcion)
+            if texto_limpio:
+                st.subheader("Transcripción Formateada:")
+                st.write(texto_limpio)
+                descargar_texto(texto_limpio)
     else:
         st.warning("Por favor, introduce el texto a procesar.")

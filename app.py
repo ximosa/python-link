@@ -2,11 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import os
 import textwrap
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
 import logging
-from collections import deque
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,65 +15,6 @@ try:
 except KeyError:
     st.error("La variable de entorno GOOGLE_API_KEY no está configurada.")
     st.stop()  # Detener la app si no hay API Key
-
-
-def obtener_texto_de_url(start_url, max_pages=1000):
-    """
-    Obtiene el texto principal de una URL y de las páginas enlazadas de manera iterativa.
-
-    Args:
-        start_url (str): La URL inicial a analizar.
-        max_pages (int): El numero máximo de paginas a seguir
-    Returns:
-        str: El texto extraído de la página y los enlaces, o None si hay un error.
-    """
-    processed_urls = set()
-    pending_urls = deque([start_url])
-    all_text = []
-
-    while pending_urls and len(processed_urls) < max_pages:
-        url = pending_urls.popleft()
-
-        if url in processed_urls:
-            logging.info(f"Deteniendo en {url}. Ya procesada.")
-            continue
-        
-        processed_urls.add(url)
-        logging.info(f"Procesando URL: {url}")
-        
-        try:
-            response = requests.get(url)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.content, 'html.parser')
-
-            # Extraer el texto principal de la página
-            textos = [p.text for p in soup.find_all('p')]
-            texto_principal = "\n".join(textos)
-            all_text.append(texto_principal)
-        
-
-            # Extraer enlaces y sus textos
-            enlaces_textos = []
-            for a in soup.find_all('a', href=True):
-                enlace = a['href']
-                if enlace.startswith("http"):
-                    enlaces_textos.append(f"[{a.text.strip()}]({enlace})")
-                    if enlace not in processed_urls:
-                        pending_urls.append(enlace)
-            
-            texto_enlaces = f"\n\nEnlaces:\n{' '.join(enlaces_textos)}"
-            all_text.append(texto_enlaces)
-
-        except requests.exceptions.RequestException as e:
-            st.error(f"Error al acceder a la URL: {e}")
-            continue
-        except Exception as e:
-            st.error(f"Error al analizar la URL: {e}")
-            continue
-
-
-    return "\n".join(all_text)
-
 
 
 def dividir_texto(texto, max_tokens=2000):
@@ -167,16 +104,19 @@ def descargar_texto(texto_formateado):
         mime="text/plain"
     )
 
-st.title("Limpiador de Texto Web (con Gemini)")
+st.title("Limpiador de Texto con Gemini")
 
-url = st.text_input("Introduce la URL de la página web:")
+transcripcion = st.text_area("Pega aquí el texto que quieres procesar:")
+procesar_button = st.button("Procesar Texto")
 
-if url:
-    with st.spinner("Obteniendo texto de la URL y procesando con Gemini..."):
-         texto_web = obtener_texto_de_url(url)
-         if texto_web:
-             texto_limpio = procesar_transcripcion(texto_web)
-             if texto_limpio:
-                st.subheader("Texto Formateado:")
-                st.write(texto_limpio)
-                descargar_texto(texto_limpio)
+
+if procesar_button:
+    if transcripcion:
+         with st.spinner("Procesando con Gemini..."):
+              texto_limpio = procesar_transcripcion(transcripcion)
+              if texto_limpio:
+                 st.subheader("Texto Formateado:")
+                 st.write(texto_limpio)
+                 descargar_texto(texto_limpio)
+    else:
+        st.warning("Por favor, introduce el texto a procesar.")

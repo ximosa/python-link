@@ -25,25 +25,45 @@ def contar_tokens(texto):
 def dividir_texto(texto, max_tokens=2500):
     """Divide el texto en fragmentos más pequeños por tokens."""
     fragmentos = []
-    tokens = texto.split()
-    fragmento_actual = []
-    cuenta_tokens = 0
+    texto_restante = texto
+    while texto_restante:
+        fragmento_actual = ""
+        tokens_actuales = 0
+        while texto_restante and tokens_actuales < max_tokens:
+           
+           
+            fragmento_candidato =  texto_restante
+            tokens_candidatos= contar_tokens(fragmento_candidato)
+            if tokens_candidatos <= max_tokens:
+                
+                fragmento_actual = fragmento_candidato
+                texto_restante = ""
+                tokens_actuales = tokens_candidatos
+                
+            else:
+               
+                
+                texto_candidato_dividido = texto_restante.split(" ",1)
+               
+                if len(texto_candidato_dividido) > 1:
+                   fragmento_candidato_palabra = texto_candidato_dividido[0]
+                   tokens_candidatos = contar_tokens(fragmento_candidato_palabra)
+                   if tokens_actuales + tokens_candidatos <= max_tokens:
+                       fragmento_actual += fragmento_candidato_palabra + " "
+                       tokens_actuales += tokens_candidatos
+                       texto_restante = texto_candidato_dividido[1]
 
-    for token in tokens:
-        token_count = contar_tokens(token)
-        if cuenta_tokens + token_count <= max_tokens:
-            fragmento_actual.append(token)
-            cuenta_tokens += token_count
-        else:
-            fragmentos.append(" ".join(fragmento_actual))
-            fragmento_actual = [token]
-            cuenta_tokens = token_count
+                   else:
+                        break
+                else:
+                  
+                  fragmento_actual = texto_restante
+                  texto_restante = ""
+                  tokens_actuales = contar_tokens(fragmento_actual)
 
-    if fragmento_actual:
-        fragmentos.append(" ".join(fragmento_actual))
+        if fragmento_actual:
+             fragmentos.append(fragmento_actual.strip())
     return fragmentos
-
-
 
 def limpiar_transcripcion_gemini(texto):
     """

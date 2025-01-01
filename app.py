@@ -20,14 +20,14 @@ except KeyError:
     st.stop()  # Detener la app si no hay API Key
 
 
-def obtener_texto_de_url(url, processed_urls=None, max_pages = 1000):
+def obtener_texto_de_url(url, processed_urls=None, max_pages=1000):
     """
     Obtiene el texto principal de una URL y de las páginas enlazadas.
 
     Args:
         url (str): La URL a analizar.
         processed_urls (set): Conjunto de URLs ya procesadas (para evitar bucles).
-        max_pages (int): El numero máximo de paginas a seguir
+         max_pages (int): El numero máximo de paginas a seguir
     Returns:
         str: El texto extraído de la página y los enlaces, o None si hay un error.
     """
@@ -37,7 +37,7 @@ def obtener_texto_de_url(url, processed_urls=None, max_pages = 1000):
     if url in processed_urls or len(processed_urls) >= max_pages:
         logging.info(f"Deteniendo en {url}. Ya procesada o máximo de páginas alcanzado.")
         return ""
-    
+
     processed_urls.add(url)
     logging.info(f"Procesando URL: {url}")
     
@@ -49,29 +49,29 @@ def obtener_texto_de_url(url, processed_urls=None, max_pages = 1000):
         # Extraer el texto principal de la página
         textos = [p.text for p in soup.find_all('p')]
         texto_principal = "\n".join(textos)
-
+    
 
         # Extraer enlaces y sus textos
         enlaces_textos = []
         enlaces_procesar = []
         for a in soup.find_all('a', href=True):
             enlace = a['href']
-            if enlace.startswith("http"):  # Filtrar enlaces completos
+            if enlace.startswith("http"):
                 enlaces_textos.append(f"[{a.text.strip()}]({enlace})")
                 enlaces_procesar.append(enlace)
 
         texto_enlaces = f"\n\nEnlaces:\n{' '.join(enlaces_textos)}"
-        
+
         texto_siguiente_paginas = ""
         for enlace in enlaces_procesar:
-           texto_siguiente_paginas+= obtener_texto_de_url(enlace, processed_urls, max_pages)
-
+            texto_siguiente_paginas += obtener_texto_de_url(enlace, processed_urls, max_pages)
+        
         return f"Texto principal:\n{texto_principal}\n{texto_enlaces}\n{texto_siguiente_paginas}"
 
 
     except requests.exceptions.RequestException as e:
-         st.error(f"Error al acceder a la URL: {e}")
-         return None
+        st.error(f"Error al acceder a la URL: {e}")
+        return None
     except Exception as e:
         st.error(f"Error al analizar la URL: {e}")
         return None

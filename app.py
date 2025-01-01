@@ -19,7 +19,7 @@ except KeyError:
 def contar_tokens(texto):
     """Cuenta el número de tokens en un texto."""
     model = genai.GenerativeModel(MODEL)
-    return len(model.get_tokens(texto).tokens)
+    return model.count_tokens(texto).total_tokens
 
 
 def dividir_texto(texto, max_tokens=2500):

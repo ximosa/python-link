@@ -5,6 +5,10 @@ import textwrap
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Obtener la API Key de las variables de entorno
 try:
@@ -15,13 +19,13 @@ except KeyError:
     st.error("La variable de entorno GOOGLE_API_KEY no está configurada.")
     st.stop()  # Detener la app si no hay API Key
 
-def obtener_texto_de_url(url, processed_urls=None, max_pages=5):
+def obtener_texto_de_url(url, processed_urls=None, max_pages=1000):
     """
     Obtiene el texto principal de una URL y de las páginas enlazadas (hasta un límite).
 
     Args:
         url (str): La URL a analizar.
-         processed_urls (set): Conjunto de URLs ya procesadas (para evitar bucles).
+        processed_urls (set): Conjunto de URLs ya procesadas (para evitar bucles).
         max_pages (int): El número máximo de páginas a seguir.
 
     Returns:
@@ -31,9 +35,11 @@ def obtener_texto_de_url(url, processed_urls=None, max_pages=5):
         processed_urls = set()
 
     if url in processed_urls or len(processed_urls) >= max_pages:
-        return "" # Si ya procesamos esta URL o excedemos el límite, detente
+        logging.info(f"Deteniendo en {url}. Ya procesada o máximo de páginas alcanzado.")
+        return ""  # Si ya procesamos esta URL o excedemos el límite, detente
     
     processed_urls.add(url)
+    logging.info(f"Procesando URL: {url}")
 
     try:
         response = requests.get(url)
@@ -54,16 +60,27 @@ def obtener_texto_de_url(url, processed_urls=None, max_pages=5):
 
         texto_enlaces = f"\n\nEnlaces:\n{' '.join(enlaces)}"
 
-        # Buscar el enlace a la siguiente página (puedes necesitar ajustar el selector)
-        next_link = soup.find('a', string=lambda text: text and "siguiente" in text.lower())
+        # Buscar el enlace a la siguiente página
+        next_link = None
+        next_page_texts = ["siguiente", "próxima", "next", ">>", "→"]
         
+        for text in next_page_texts:
+            next_link = soup.find('a', string=lambda t: t and text in t.lower())
+            if next_link:
+                break
+            # Por si lo busca con alguna clase (ejemplo: <a class="next">)
+        if not next_link:
+            next_link = soup.find('a', class_=lambda c: c and 'next' in c.lower())
+
         if next_link:
             next_url = urljoin(url, next_link['href'])
              # Llamar recursivamente para procesar la siguiente página
+            logging.info(f"Enlace encontrado: {next_url}")
             texto_siguiente_pagina = obtener_texto_de_url(next_url, processed_urls, max_pages)
             return f"Texto principal:\n{texto_principal}\n{texto_enlaces}\n{texto_siguiente_pagina}"
 
         return f"Texto principal:\n{texto_principal}\n{texto_enlaces}"
+
 
     except requests.exceptions.RequestException as e:
          st.error(f"Error al acceder a la URL: {e}")
@@ -71,6 +88,7 @@ def obtener_texto_de_url(url, processed_urls=None, max_pages=5):
     except Exception as e:
         st.error(f"Error al analizar la URL: {e}")
         return None
+
 
 
 def dividir_texto(texto, max_tokens=2000):
@@ -87,7 +105,7 @@ def dividir_texto(texto, max_tokens=2000):
         else:
             fragmentos.append(" ".join(fragmento_actual))
             fragmento_actual = [token]
-            cuenta_tokens = 1
+            cuenta_actual = 1
     if fragmento_actual:
         fragmentos.append(" ".join(fragmento_actual))
     return fragmentos

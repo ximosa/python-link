@@ -4,6 +4,7 @@ import os
 import textwrap
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 
 # Obtener la API Key de las variables de entorno
 try:
@@ -14,34 +15,56 @@ except KeyError:
     st.error("La variable de entorno GOOGLE_API_KEY no está configurada.")
     st.stop()  # Detener la app si no hay API Key
 
-def obtener_texto_de_url(url):
+def obtener_texto_de_url(url, processed_urls=None, max_pages=5):
     """
-    Obtiene el texto principal de una URL y sus enlaces.
+    Obtiene el texto principal de una URL y de las páginas enlazadas (hasta un límite).
 
     Args:
         url (str): La URL a analizar.
+         processed_urls (set): Conjunto de URLs ya procesadas (para evitar bucles).
+        max_pages (int): El número máximo de páginas a seguir.
 
     Returns:
         str: El texto extraído de la página y los enlaces, o None si hay un error.
     """
+    if processed_urls is None:
+        processed_urls = set()
+
+    if url in processed_urls or len(processed_urls) >= max_pages:
+        return "" # Si ya procesamos esta URL o excedemos el límite, detente
+    
+    processed_urls.add(url)
+
     try:
         response = requests.get(url)
-        response.raise_for_status()  # Lanza una excepción para códigos de error HTTP
+        response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
 
         # Extraer el texto principal de la página
         textos = [p.text for p in soup.find_all('p')]
         texto_principal = "\n".join(textos)
-        
-        # Extraer enlaces y sus textos
+
+         # Extraer enlaces y sus textos
         enlaces = []
         for a in soup.find_all('a', href=True):
             enlace = a['href']
             if enlace.startswith("http"): # Filtrar enlaces completos
                enlaces.append(f"[{a.text.strip()}]({enlace})")
-            
-        return f"Texto principal:\n{texto_principal}\n\nEnlaces:\n{' '.join(enlaces)}"
-    
+
+
+        texto_enlaces = f"\n\nEnlaces:\n{' '.join(enlaces)}"
+
+        # Buscar el enlace a la siguiente página (puedes necesitar ajustar el selector)
+        next_link = soup.find('a', string=lambda text: text and "siguiente" in text.lower())
+        
+        if next_link:
+            next_url = urljoin(url, next_link['href'])
+             # Llamar recursivamente para procesar la siguiente página
+            texto_siguiente_pagina = obtener_texto_de_url(next_url, processed_urls, max_pages)
+            return f"Texto principal:\n{texto_principal}\n{texto_enlaces}\n{texto_siguiente_pagina}"
+
+        return f"Texto principal:\n{texto_principal}\n{texto_enlaces}"
+
     except requests.exceptions.RequestException as e:
          st.error(f"Error al acceder a la URL: {e}")
          return None

@@ -16,25 +16,34 @@ except KeyError:
     st.error("La variable de entorno GOOGLE_API_KEY no está configurada.")
     st.stop()  # Detener la app si no hay API Key
 
+def contar_tokens(texto):
+    """Cuenta el número de tokens en un texto."""
+    model = genai.GenerativeModel(MODEL)
+    return len(model.get_tokens(texto).tokens)
 
-def dividir_texto(texto, max_tokens=2000):
-    """Divide el texto en fragmentos más pequeños."""
-    tokens = texto.split()
+
+def dividir_texto(texto, max_tokens=2500):
+    """Divide el texto en fragmentos más pequeños por tokens."""
     fragmentos = []
+    tokens = texto.split()
     fragmento_actual = []
     cuenta_tokens = 0
 
     for token in tokens:
-        cuenta_tokens += 1
-        if cuenta_tokens <= max_tokens:
+        token_count = contar_tokens(token)
+        if cuenta_tokens + token_count <= max_tokens:
             fragmento_actual.append(token)
+            cuenta_tokens += token_count
         else:
             fragmentos.append(" ".join(fragmento_actual))
             fragmento_actual = [token]
-            cuenta_actual = 1
+            cuenta_tokens = token_count
+
     if fragmento_actual:
         fragmentos.append(" ".join(fragmento_actual))
     return fragmentos
+
+
 
 def limpiar_transcripcion_gemini(texto):
     """
@@ -105,7 +114,7 @@ def descargar_texto(texto_formateado):
     )
 
 st.title("Limpiador de Texto con Gemini")
-
+max_tokens = st.number_input("Número máximo de tokens por fragmento", min_value=500, max_value=10000, value=2500, step=100)
 transcripcion = st.text_area("Pega aquí el texto que quieres procesar:")
 procesar_button = st.button("Procesar Texto")
 

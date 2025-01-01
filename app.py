@@ -65,7 +65,9 @@ def dividir_texto(texto, max_tokens=2500):
 
         if fragmento_actual:
              fragmentos.append(fragmento_actual.strip())
+    logging.info(f"Fragmentos creados: {fragmentos}")
     return fragmentos
+
 
 
 def limpiar_transcripcion_gemini(texto):
@@ -97,13 +99,14 @@ def limpiar_transcripcion_gemini(texto):
 
         Texto corregido:
     """
+    logging.info(f"Limpiando texto con Gemini: {texto[:50]}...")
     try:
         model = genai.GenerativeModel(MODEL)
         response = model.generate_content(prompt)
         if response and response.text:
             return response.text
         else:
-            logging.error(f"Error en Gemini. No se ha podido procesar el texto: {texto}")
+            logging.error(f"Error en Gemini. No se ha podido procesar el texto: {texto[:50]}...")
             return None
     except Exception as e:
         logging.error(f"Error al procesar con Gemini: {e}")
@@ -113,6 +116,7 @@ def limpiar_transcripcion_gemini(texto):
 def procesar_transcripcion(texto):
     """Procesa el texto dividiendo en fragmentos y usando Gemini."""
     fragmentos = dividir_texto(texto)
+    logging.info(f"Fragmentos a procesar: {len(fragmentos)}")
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_to_fragment = {executor.submit(limpiar_transcripcion_gemini, fragmento): fragmento for fragmento in fragmentos}
         texto_limpio_completo = ""
@@ -129,7 +133,6 @@ def procesar_transcripcion(texto):
                 st.error(f"Error al obtener el resultado del fragmento: {fragmento[:50]}... Error: {e}")
     
     return texto_limpio_completo.strip()
-
 
 def descargar_texto(texto_formateado):
     """

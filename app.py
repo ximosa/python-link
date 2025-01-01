@@ -19,15 +19,15 @@ except KeyError:
     st.error("La variable de entorno GOOGLE_API_KEY no está configurada.")
     st.stop()  # Detener la app si no hay API Key
 
-def obtener_texto_de_url(url, processed_urls=None, max_pages=1000):
+
+def obtener_texto_de_url(url, processed_urls=None, max_pages = 1000):
     """
-    Obtiene el texto principal de una URL y de las páginas enlazadas (hasta un límite).
+    Obtiene el texto principal de una URL y de las páginas enlazadas.
 
     Args:
         url (str): La URL a analizar.
         processed_urls (set): Conjunto de URLs ya procesadas (para evitar bucles).
-        max_pages (int): El número máximo de páginas a seguir.
-
+        max_pages (int): El numero máximo de paginas a seguir
     Returns:
         str: El texto extraído de la página y los enlaces, o None si hay un error.
     """
@@ -36,11 +36,11 @@ def obtener_texto_de_url(url, processed_urls=None, max_pages=1000):
 
     if url in processed_urls or len(processed_urls) >= max_pages:
         logging.info(f"Deteniendo en {url}. Ya procesada o máximo de páginas alcanzado.")
-        return ""  # Si ya procesamos esta URL o excedemos el límite, detente
+        return ""
     
     processed_urls.add(url)
     logging.info(f"Procesando URL: {url}")
-
+    
     try:
         response = requests.get(url)
         response.raise_for_status()
@@ -50,36 +50,23 @@ def obtener_texto_de_url(url, processed_urls=None, max_pages=1000):
         textos = [p.text for p in soup.find_all('p')]
         texto_principal = "\n".join(textos)
 
-         # Extraer enlaces y sus textos
-        enlaces = []
+
+        # Extraer enlaces y sus textos
+        enlaces_textos = []
+        enlaces_procesar = []
         for a in soup.find_all('a', href=True):
             enlace = a['href']
-            if enlace.startswith("http"): # Filtrar enlaces completos
-               enlaces.append(f"[{a.text.strip()}]({enlace})")
+            if enlace.startswith("http"):  # Filtrar enlaces completos
+                enlaces_textos.append(f"[{a.text.strip()}]({enlace})")
+                enlaces_procesar.append(enlace)
 
-
-        texto_enlaces = f"\n\nEnlaces:\n{' '.join(enlaces)}"
-
-        # Buscar el enlace a la siguiente página
-        next_link = None
-        next_page_texts = ["siguiente", "próxima", "next", ">>", "→"]
+        texto_enlaces = f"\n\nEnlaces:\n{' '.join(enlaces_textos)}"
         
-        for text in next_page_texts:
-            next_link = soup.find('a', string=lambda t: t and text in t.lower())
-            if next_link:
-                break
-            # Por si lo busca con alguna clase (ejemplo: <a class="next">)
-        if not next_link:
-            next_link = soup.find('a', class_=lambda c: c and 'next' in c.lower())
+        texto_siguiente_paginas = ""
+        for enlace in enlaces_procesar:
+           texto_siguiente_paginas+= obtener_texto_de_url(enlace, processed_urls, max_pages)
 
-        if next_link:
-            next_url = urljoin(url, next_link['href'])
-             # Llamar recursivamente para procesar la siguiente página
-            logging.info(f"Enlace encontrado: {next_url}")
-            texto_siguiente_pagina = obtener_texto_de_url(next_url, processed_urls, max_pages)
-            return f"Texto principal:\n{texto_principal}\n{texto_enlaces}\n{texto_siguiente_pagina}"
-
-        return f"Texto principal:\n{texto_principal}\n{texto_enlaces}"
+        return f"Texto principal:\n{texto_principal}\n{texto_enlaces}\n{texto_siguiente_paginas}"
 
 
     except requests.exceptions.RequestException as e:
@@ -88,7 +75,6 @@ def obtener_texto_de_url(url, processed_urls=None, max_pages=1000):
     except Exception as e:
         st.error(f"Error al analizar la URL: {e}")
         return None
-
 
 
 def dividir_texto(texto, max_tokens=2000):
@@ -135,6 +121,7 @@ def limpiar_transcripcion_gemini(texto):
     - Escribe como si estuvieras narrando una historia
     - Evita los asteriscos en el texto, dame tan solo el texto sin encabezados ni texto en negrita
     -Importante, el texto debe adaptarse para que el lector de voz de google lo lea lo mejor posible
+    - Limita el texto a 10.000 caracteres
         {texto}
 
         Texto corregido:

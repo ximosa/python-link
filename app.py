@@ -12,7 +12,7 @@ except KeyError:
     st.error("La variable de entorno _GOOGLE_API_KEY no está configurada.")
     st.stop()  # Detener la app si no hay API Key
 
-def dividir_texto(texto, max_tokens=2000):
+def dividir_texto(texto, max_tokens=1000):
     """Divide el texto en fragmentos más pequeños."""
     tokens = texto.split()
     fragmentos = []

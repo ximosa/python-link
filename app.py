@@ -63,6 +63,7 @@ def dividir_texto(texto, max_tokens=2500):
 
         if fragmento_actual:
              fragmentos.append(fragmento_actual.strip())
+    logging.info(f"Fragmentos creados: {fragmentos}")
     return fragmentos
 
 def limpiar_transcripcion_gemini(texto):
@@ -98,22 +99,28 @@ def limpiar_transcripcion_gemini(texto):
     try:
         model = genai.GenerativeModel(MODEL)
         response = model.generate_content(prompt)
-        return response.text
-
+        if response and response.text:
+            return response.text
+        else:
+            logging.error(f"Error en Gemini. No se ha podido procesar el texto: {texto}")
+            return None
     except Exception as e:
-        st.error(f"Error al procesar con Gemini: {e}")
+        logging.error(f"Error al procesar con Gemini: {e}")
         return None
-
 
 def procesar_transcripcion(texto):
     """Procesa el texto dividiendo en fragmentos y usando Gemini."""
     fragmentos = dividir_texto(texto)
     texto_limpio_completo = ""
     for i, fragmento in enumerate(fragmentos):
-        st.write(f"Procesando fragmento {i+1}/{len(fragmentos)}")
-        texto_limpio = limpiar_transcripcion_gemini(fragmento)
-        if texto_limpio:
-            texto_limpio_completo += texto_limpio + " " # Agregar espacio para evitar que las frases se unan
+       logging.info(f"Procesando fragmento {i+1}/{len(fragmentos)}: {fragmento}")
+       st.write(f"Procesando fragmento {i+1}/{len(fragmentos)}")
+       texto_limpio = limpiar_transcripcion_gemini(fragmento)
+       if texto_limpio:
+           texto_limpio_completo += texto_limpio + " " # Agregar espacio para evitar que las frases se unan
+       else:
+            logging.error(f"La funcion limpiar_transcripcion_gemini devolvió un valor no valido para el texto: {fragmento}")
+
     return texto_limpio_completo.strip()
 
 def descargar_texto(texto_formateado):

@@ -6,7 +6,7 @@ import os
 try:
     GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
     genai.configure(api_key=GOOGLE_API_KEY)
-    MODEL = "gemini-pro-vision"
+    MODEL = "gemini-1.5-flash" # Cambiamos el modelo
 except KeyError:
     st.error("La variable de entorno _GOOGLE_API_KEY no está configurada.")
     st.stop()  # Detener la app si no hay API Key

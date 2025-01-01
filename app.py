@@ -1,17 +1,35 @@
 import streamlit as st
 import google.generativeai as genai
 import os
+import textwrap
 
 # Obtener la API Key de las variables de entorno
 try:
     GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
     genai.configure(api_key=GOOGLE_API_KEY)
-    MODEL = "gemini-1.5-flash" # Cambiamos el modelo
+    MODEL = "gemini-pro"
 except KeyError:
     st.error("La variable de entorno _GOOGLE_API_KEY no está configurada.")
     st.stop()  # Detener la app si no hay API Key
 
+def dividir_texto(texto, max_tokens=2000):
+    """Divide el texto en fragmentos más pequeños."""
+    tokens = texto.split()
+    fragmentos = []
+    fragmento_actual = []
+    cuenta_tokens = 0
 
+    for token in tokens:
+        cuenta_tokens += 1
+        if cuenta_tokens <= max_tokens:
+            fragmento_actual.append(token)
+        else:
+            fragmentos.append(" ".join(fragmento_actual))
+            fragmento_actual = [token]
+            cuenta_tokens = 1
+    if fragmento_actual:
+        fragmentos.append(" ".join(fragmento_actual))
+    return fragmentos
 
 def limpiar_transcripcion_gemini(texto):
     """
@@ -24,19 +42,19 @@ def limpiar_transcripcion_gemini(texto):
       str: La transcripción formateada.
     """
     prompt = f"""
-       Actúa como un lector profundo y reflexivo, con una habilidad excepcional para la expansión textual. Escribe en primera persona, como si tú hubieras vivido la experiencia o reflexionado sobre los temas presentados.
-    Sigue estas pautas con extrema precisión:
-    - Reescribe el siguiente texto utilizando tus propias palabras, y asegúrate de que la longitud del texto resultante sea al menos igual o incluso un poco mayor que la longitud del texto original.
-    - No reduzcas la información en ningún caso. Al contrario, intenta expandir cada punto y concepto si es posible, agregando detalles, ejemplos y matices.
-    - No generes un resumen. Quiero un texto parafraseado y expandido, cuyo tamaño sea comparable o superior al texto original.
-    - Dale un título preciso y llamativo que refleje el contenido expandido del texto.
-    - Evita mencionar nombres de personajes o del autor directamente. Refiérete a ellos de manera genérica (ej: "una persona", "un personaje").
-    - Concentra la reflexión en la experiencia general, las ideas principales, los temas, y las emociones transmitidas por el texto.
-    - Utiliza un lenguaje evocador, personal, y narrativo. Como si estuvieras compartiendo tus propias conclusiones tras una profunda y reflexiva experiencia.
-    - No uses nombres propios ni nombres de lugares específicos. Refiérete a ellos como "un lugar", "una persona", "otro personaje", etc.
-    - Usa un lenguaje claro, directo y que fluya de manera natural para facilitar la lectura en voz alta.
-    - Escribe en un estilo narrativo, como si estuvieras contando una historia, manteniendo una coherencia y una progresión lógica en el texto.
-    - Evita cualquier formato (asteriscos, negritas, encabezados). Proporciona solamente el texto formateado.
+    Actúa como un lector profundo y reflexivo, y un narrador excepcional. Escribe en primera persona, como si tú hubieras vivido la experiencia o reflexionado sobre los temas presentados.
+    Sigue estas pautas con máxima precisión:
+    - Reescribe el siguiente texto utilizando tus propias palabras, y asegúrate de que la longitud del texto resultante sea al menos igual, idealmente un poco mayor, que la del texto original.
+    - No reduzcas la información. Al contrario, expande cada punto y concepto, añade detalles, ejemplos y matices para enriquecer el texto.
+    - No generes un resumen conciso. Necesito un texto parafraseado y expandido, cuyo tamaño sea comparable o superior al texto original.
+    - Crea un título atractivo y preciso que capture la esencia del contenido expandido.
+    - Evita menciones directas de nombres de personajes o autores; refiérete a ellos genéricamente (ej: "una persona", "un personaje").
+    - Reflexiona sobre la experiencia general, las ideas principales, los temas y las emociones transmitidas por el texto.
+    - Utiliza un lenguaje personal, evocador y narrativo. Como si estuvieras compartiendo tus propias reflexiones tras una profunda experiencia.
+    - No uses nombres propios ni lugares específicos; refiérete a ellos como "un lugar", "una persona", etc.
+    - Emplea un lenguaje claro y directo, que fluya naturalmente para una lectura en voz alta.
+    - Escribe en un estilo narrativo, como si contaras una historia, manteniendo una coherencia lógica y un hilo conductor claro.
+    - Evita cualquier formato (asteriscos, negritas, encabezados); devuelve solo el texto formateado.
 
     {texto}
 
@@ -44,7 +62,7 @@ def limpiar_transcripcion_gemini(texto):
     """
     try:
         model = genai.GenerativeModel(MODEL)
-        response = model.generate_content(prompt, generation_config={"temperature": 0.4})
+        response = model.generate_content(prompt)
         return response.text
 
     except Exception as e:
@@ -53,10 +71,15 @@ def limpiar_transcripcion_gemini(texto):
 
 
 def procesar_transcripcion(texto):
-    """Procesa el texto  usando Gemini."""
-    with st.spinner("Procesando con Gemini..."):
-        texto_limpio = limpiar_transcripcion_gemini(texto)
-        return texto_limpio
+    """Procesa el texto dividiendo en fragmentos y usando Gemini."""
+    fragmentos = dividir_texto(texto)
+    texto_limpio_completo = ""
+    for i, fragmento in enumerate(fragmentos):
+        st.write(f"Procesando fragmento {i+1}/{len(fragmentos)}")
+        texto_limpio = limpiar_transcripcion_gemini(fragmento)
+        if texto_limpio:
+            texto_limpio_completo += texto_limpio + " "  # Agregar espacio para evitar que las frases se unan
+    return texto_limpio_completo.strip()
 
 def descargar_texto(texto_formateado):
     """
@@ -83,10 +106,11 @@ procesar_button = st.button("Procesar Texto") # Botón para iniciar el procesami
 
 if procesar_button:
     if transcripcion:
-        texto_limpio = procesar_transcripcion(transcripcion)
-        if texto_limpio:
-            st.subheader("Transcripción Formateada:")
-            st.write(texto_limpio)
-            descargar_texto(texto_limpio)
+         with st.spinner("Procesando con Gemini..."):
+             texto_limpio = procesar_transcripcion(transcripcion)
+             if texto_limpio:
+                 st.subheader("Transcripción Formateada:")
+                 st.write(texto_limpio)
+                 descargar_texto(texto_limpio)
     else:
         st.warning("Por favor, introduce el texto a procesar.")

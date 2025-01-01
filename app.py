@@ -12,6 +12,7 @@ except KeyError:
     st.error("La variable de entorno _GOOGLE_API_KEY no está configurada.")
     st.stop()  # Detener la app si no hay API Key
 
+
 def dividir_texto(texto, max_tokens=2000):
     """Divide el texto en fragmentos más pequeños."""
     tokens = texto.split()
@@ -30,6 +31,7 @@ def dividir_texto(texto, max_tokens=2000):
     if fragmento_actual:
         fragmentos.append(" ".join(fragmento_actual))
     return fragmentos
+
 
 def limpiar_transcripcion_gemini(texto):
     """
@@ -69,16 +71,25 @@ def limpiar_transcripcion_gemini(texto):
         st.error(f"Error al procesar con Gemini: {e}")
         return None
 
-
-def procesar_transcripcion(texto):
-    """Procesa el texto dividiendo en fragmentos y usando Gemini."""
+def procesar_transcripcion(texto, num_partes=3):
+    """Procesa el texto dividiendo en fragmentos y usando Gemini varias veces."""
     fragmentos = dividir_texto(texto)
+    num_fragmentos = len(fragmentos)
+    if num_fragmentos == 0:
+        return ""
+    
+    fragmentos_por_parte = num_fragmentos // num_partes
     texto_limpio_completo = ""
-    for i, fragmento in enumerate(fragmentos):
-        st.write(f"Procesando fragmento {i+1}/{len(fragmentos)}")
-        texto_limpio = limpiar_transcripcion_gemini(fragmento)
+
+    for parte in range(num_partes):
+        inicio = parte * fragmentos_por_parte
+        fin = (parte + 1) * fragmentos_por_parte if parte < num_partes - 1 else num_fragmentos
+        
+        texto_parte = " ".join(fragmentos[inicio:fin])
+        st.write(f"Procesando parte {parte+1}/{num_partes} (Fragmentos {inicio + 1}-{fin})")
+        texto_limpio = limpiar_transcripcion_gemini(texto_parte)
         if texto_limpio:
-            texto_limpio_completo += texto_limpio + " "  # Agregar espacio para evitar que las frases se unan
+          texto_limpio_completo += texto_limpio + " " # Agregar espacio para evitar que las frases se unan
     return texto_limpio_completo.strip()
 
 

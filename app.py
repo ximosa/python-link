@@ -2,7 +2,12 @@ import streamlit as st
 import google.generativeai as genai
 import os
 import textwrap
+st.set_page_config(
+    page_title="texto-largo",
+    layout="wide"
+)
 
+st.title("texto-largo")
 # Obtener la API Key de las variables de entorno
 try:
     GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]

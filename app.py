@@ -45,7 +45,7 @@ def limpiar_transcripcion_gemini(texto):
       str: La transcripción formateada.
     """
     prompt = f"""
-    Actúa como un lector profundo y reflexivo, y un narrador excepcional. Escribe en primera persona, como si tú hubieras vivido la experiencia o reflexionado sobre los temas presentados.
+    Actúa como un lector usando un tono conversacional y ameno, como si le contaras la historia a un amigo, como si tú hubieras vivido la experiencia o reflexionado sobre los temas presentados.
     Sigue estas pautas con máxima precisión:
     - Reescribe el siguiente texto utilizando tus propias palabras, y asegúrate de que la longitud del texto resultante sea al menos igual, idealmente un poco mayor, que la del texto original.
     - No reduzcas la información. Al contrario, expande cada punto y concepto, añade detalles, ejemplos y matices para enriquecer el texto.

@@ -27,13 +27,21 @@ try:
 
     # Selecciona un modelo (asegúrate de que esté en la lista de modelos disponibles)
     MODEL = None
+    # Prioridad 1: Intenta encontrar gemini-1.5-flash
     for model in available_models:
-        if "gemini-pro" in model.name.lower():  # Encuentra un modelo que contenga "gemini-pro" en su nombre
+        if "gemini-1.5-flash" in model.name.lower():
             MODEL = model.name
             break
 
+    # Prioridad 2: Si no encuentra gemini-1.5-flash, busca CUALQUIER modelo gemini-pro
     if MODEL is None:
-        st.error("No se encontró un modelo 'gemini-pro' (o similar) en la lista de modelos disponibles.  Revisa la salida de ListModels().")
+        for model in available_models:
+            if "gemini-pro" in model.name.lower():
+                MODEL = model.name
+                break
+
+    if MODEL is None:
+        st.error("No se encontró un modelo 'gemini-1.5-flash' o 'gemini-pro' (o similar) en la lista de modelos disponibles.  Revisa la salida de ListModels().")
         st.stop()
 
     st.write(f"Usando modelo: {MODEL}") # Imprime el modelo que se va a usar

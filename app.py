@@ -2,15 +2,43 @@ import streamlit as st
 import google.generativeai as genai
 import os
 import textwrap
+
 st.set_page_config(
     page_title="texto-largo",
     layout="wide"
 )
+
 # Obtener la API Key de las variables de entorno
 try:
     GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
+    print(f"API Key: '{GOOGLE_API_KEY}'") # Imprime la API Key para verificar
+
     genai.configure(api_key=GOOGLE_API_KEY)
-    MODEL = "gemini-pro"
+
+    # Listar los modelos disponibles
+    st.write("Modelos disponibles:")
+    available_models = list(genai.list_models())
+    for model in available_models:
+        st.write(model)
+
+    if not available_models:
+        st.error("No se encontraron modelos disponibles.  Verifica tu API Key y permisos.")
+        st.stop()
+
+    # Selecciona un modelo (asegúrate de que esté en la lista de modelos disponibles)
+    MODEL = None
+    for model in available_models:
+        if "gemini-pro" in model.name.lower():  # Encuentra un modelo que contenga "gemini-pro" en su nombre
+            MODEL = model.name
+            break
+
+    if MODEL is None:
+        st.error("No se encontró un modelo 'gemini-pro' (o similar) en la lista de modelos disponibles.  Revisa la salida de ListModels().")
+        st.stop()
+
+    st.write(f"Usando modelo: {MODEL}") # Imprime el modelo que se va a usar
+
+
 except KeyError:
     st.error("La variable de entorno _GOOGLE_API_KEY no está configurada.")
     st.stop()  # Detener la app si no hay API Key

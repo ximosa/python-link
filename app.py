@@ -11,64 +11,58 @@ st.set_page_config(
 # Obtener la API Key de las variables de entorno
 try:
     GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
-    print(f"API Key: '{GOOGLE_API_KEY}'") # Imprime la API Key para verificar
 
     genai.configure(api_key=GOOGLE_API_KEY)
 
     # Listar los modelos disponibles
-    st.write("Modelos disponibles:")
-    available_models = list(genai.list_models())
-    for model in available_models:
-        st.write(model)
+    available_models = [model.name for model in genai.list_models() if 'generateContent' in model.supported_generation_methods]
 
     if not available_models:
-        st.error("No se encontraron modelos disponibles.  Verifica tu API Key y permisos.")
+        st.error("No se encontraron modelos disponibles que soporten 'generateContent'.  Verifica tu API Key y permisos.")
         st.stop()
 
-    # Selecciona un modelo (asegúrate de que esté en la lista de modelos disponibles)
-    MODEL = None
-    # Prioridad 1: Intenta encontrar gemini-1.5-flash
-    for model in available_models:
-        if "gemini-1.5-flash" in model.name.lower():
-            MODEL = model.name
-            break
+    # Widget de selección de modelo
+    MODEL = st.selectbox("Selecciona un modelo Gemini:", available_models)
 
-    # Prioridad 2: Si no encuentra gemini-1.5-flash, busca CUALQUIER modelo gemini-pro
-    if MODEL is None:
-        for model in available_models:
-            if "gemini-pro" in model.name.lower():
-                MODEL = model.name
-                break
-
-    if MODEL is None:
-        st.error("No se encontró un modelo 'gemini-1.5-flash' o 'gemini-pro' (o similar) en la lista de modelos disponibles.  Revisa la salida de ListModels().")
-        st.stop()
-
-    st.write(f"Usando modelo: {MODEL}") # Imprime el modelo que se va a usar
+    st.write(f"Usando modelo: {MODEL}")
 
 
 except KeyError:
-    st.error("La variable de entorno _GOOGLE_API_KEY no está configurada.")
+    st.error("La variable de entorno GOOGLE_API_KEY no está configurada.")
     st.stop()  # Detener la app si no hay API Key
 
-def dividir_texto(texto, max_tokens=1000):
-    """Divide el texto en fragmentos más pequeños."""
-    tokens = texto.split()
+def dividir_texto(texto, max_tokens=3000):
+    """Divide el texto en fragmentos más pequeños, intentando mantener la coherencia semántica.
+    Ajusta el tamaño de los fragmentos para que sean lo más grandes posible sin exceder el límite de tokens,
+    y trata de evitar cortar las frases a la mitad.
+    """
+    # Divide el texto en frases utilizando separadores comunes.
+    frases = texto.split('. ')  # Divide por puntos seguidos de espacio.  Añade más separadores si es necesario (?!; etc.)
+
     fragmentos = []
-    fragmento_actual = []
+    fragmento_actual = ""
     cuenta_tokens = 0
 
-    for token in tokens:
-        cuenta_tokens += 1
-        if cuenta_tokens <= max_tokens:
-            fragmento_actual.append(token)
+    for frase in frases:
+        tokens_frase = len(frase.split())  # Estima el número de tokens en la frase
+
+        if cuenta_tokens + tokens_frase <= max_tokens:
+            # La frase cabe en el fragmento actual.
+            fragmento_actual += frase + ". " # Añade la frase al fragmento y un espacio.
+            cuenta_tokens += tokens_frase
         else:
-            fragmentos.append(" ".join(fragmento_actual))
-            fragmento_actual = [token]
-            cuenta_tokens = 1
+            # La frase no cabe en el fragmento actual.  Crea un nuevo fragmento.
+            if fragmento_actual:  # Si hay algo en el fragmento actual, lo añade a la lista.
+                fragmentos.append(fragmento_actual.strip())  # Elimina espacios al principio/final
+            fragmento_actual = frase + ". "  # Empieza un nuevo fragmento con la frase actual.
+            cuenta_tokens = tokens_frase
+
+    # Añade el último fragmento si no está vacío.
     if fragmento_actual:
-        fragmentos.append(" ".join(fragmento_actual))
+        fragmentos.append(fragmento_actual.strip())
+
     return fragmentos
+
 
 def limpiar_transcripcion_gemini(texto):
     """
@@ -81,23 +75,32 @@ def limpiar_transcripcion_gemini(texto):
       str: La transcripción formateada.
     """
     prompt = f"""
-    Actúa como un lector usando un tono conversacional y ameno, como si le contaras la historia a un publico, como si tú hubieras vivido la experiencia o reflexionado sobre los temas presentados.
-    Sigue estas pautas con máxima precisión:
-    - Reescribe el siguiente texto utilizando tus propias palabras, y asegúrate de que la longitud del texto resultante sea al menos igual, idealmente un poco mayor, que la del texto original.
-    - No reduzcas la información. Al contrario, expande cada punto y concepto, añade detalles, ejemplos y matices para enriquecer el texto.
-    - No generes un resumen conciso. Necesito un texto parafraseado y expandido, cuyo tamaño sea comparable o superior al texto original.
-    - Crea un título atractivo y preciso que capture la esencia del contenido expandido.
-    - Evita menciones directas de nombres de personajes o autores; refiérete a ellos genéricamente (ej: "una persona", "un personaje").
-    - Reflexiona sobre la experiencia general, las ideas principales, los temas y las emociones transmitidas por el texto.
-    - Utiliza un lenguaje personal, evocador y narrativo. Como si estuvieras compartiendo tus propias reflexiones tras una profunda experiencia.
-    - No uses nombres propios ni lugares específicos; refiérete a ellos como "un lugar", "una persona", etc.
-    - Emplea un lenguaje claro y directo, que fluya naturalmente para una lectura en voz alta.
-    - Escribe en un estilo narrativo, como si contaras una historia, manteniendo una coherencia lógica y un hilo conductor claro.
-    - Evita cualquier formato (asteriscos, negritas, encabezados); devuelve solo el texto formateado.
+    Actúa como un escritor creativo y conversacional. Reescribe el siguiente texto para hacerlo más atractivo y fácil de entender, como si estuvieras contándole una historia a un amigo.
+
+    **Instrucciones detalladas:**
+
+    1.  **Parafrasea y Expande:** Usa tus propias palabras para reescribir el texto, expandiendo cada punto y concepto. Añade detalles, ejemplos, analogías y matices para enriquecer el contenido y hacerlo más interesante.  Asegúrate de que la longitud del texto resultante sea significativamente mayor que la del original. No te limites a un resumen; profundiza en cada idea.
+
+    2.  **Tono Conversacional:** Escribe en un tono ameno, informal y cercano. Usa un lenguaje natural y evita la jerga técnica a menos que sea absolutamente necesario. Explica los conceptos complejos de forma sencilla y accesible.
+
+    3.  **Reflexiones Personales:** Incorpora tus propias reflexiones, opiniones y experiencias relacionadas con el tema.  Pregúntate por qué es importante, cómo se aplica a la vida cotidiana y qué implicaciones tiene.  Haz que el lector se sienta conectado con el tema a un nivel personal.
+
+    4.  **Estructura Narrativa:** Organiza el texto de forma lógica y coherente, como si estuvieras contando una historia.  Crea una introducción atractiva, desarrolla los puntos principales de manera clara y concisa, y concluye con un resumen de las ideas clave y una reflexión final.
+
+    5.  **Título Atractivo:** Crea un título que capture la esencia del contenido de forma atractiva y que invite al lector a seguir leyendo.
+
+    **Consideraciones:**
+
+    *   Evita mencionar nombres propios o lugares específicos a menos que sea esencial para la comprensión.
+    *   No uses formatos especiales como negritas o listas.  Devuelve solo el texto formateado.
+    *   Asegúrate de que el texto resultante sea original y no una simple copia del texto original.
+    *   Adapta el estilo de escritura al público objetivo (lectores generales).
+
+    **Texto a reescribir:**
 
     {texto}
 
-    Texto corregido:
+    **Texto corregido:**
     """
     try:
         model = genai.GenerativeModel(MODEL)
